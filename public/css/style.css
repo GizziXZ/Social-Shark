@@ -1,0 +1,76 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+  margin-top: 50px;
+}
+
+form {
+  margin: auto;
+  max-width: 400px;
+  border: 1px solid #ccc;
+  padding: 80px;
+  border-radius: 20px;
+}
+
+label {
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+input:focus {
+  outline: none;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+input[type="submit"] {
+  background-color: #4CAF50;
+  color: #fff;
+  padding: 10px;
+  font-size: 18px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+input[type="submit"]:hover {
+  background-color: #3e8e41;
+}
+
+a {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+}
+
+#success-message {
+  color: limegreen;
+  font-size: 14px;
+}
+
+/* Error message styling */
+input.error {
+  border-color: red;
+}
+
+.error-message {
+  color: red;
+  display: block;
+  font-size: 14px;
+  margin-top: -5px;
+  margin-bottom: 10px;
+}

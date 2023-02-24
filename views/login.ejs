@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="/css/style.css" />
+  <meta charset="utf-8">
+  <title>Login</title>
+</head>
+<body>
+  <a href="/register">Create new account</a>
+  <h1>Login</h1>
+  <form method="POST" autocomplete="off">
+    <span id="success-message"><%= locals.message %></span>
+    <span class="error-message" id="error"><%= locals.Error %></span><br>
+    <label for="email">Email:</label>
+    <input type="text" id="email" name="email" placeholder="Enter your Email"><br><br>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" placeholder="Enter your Password"><br><br>
+    <input type="submit" value="Login">
+  </form>
+</body>
+</html>

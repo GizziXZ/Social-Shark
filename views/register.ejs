@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="/css/style.css" />
+  <meta charset="utf-8">
+  <title>Register</title>
+</head>
+<body>
+  <a href="/login">Already have an account?</a>
+  <h1>Register</h1>
+  <form method="POST" autocomplete="off">
+    <label for="email">Email:</label>
+    <input type="text" id="email" name="email" placeholder="Enter an Email" class="<%= locals.emailError ? 'error' : '' %>">
+    <span class="error-message" id="email-error"><%= locals.emailError %></span>
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" placeholder="Enter a Username" class="<%= locals.usernameError ? 'error' : '' %>">
+    <span class="error-message" id="username-error"><%= locals.usernameError %></span>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" placeholder="Enter a Password" class="<%= locals.passwordError ? 'error' : '' %>">
+    <span class="error-message" id="password-error"><%= locals.passwordError %></span><br>
+    <input type="submit" value="Create account">
+  </form>
+</body>
+</html>

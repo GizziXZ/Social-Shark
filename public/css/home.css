@@ -1,0 +1,80 @@
+/* Normalize styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Global styles */
+body {
+  font-family: sans-serif;
+  background-color: #e9ebee;
+}
+
+/* Header styles */
+header {
+  height: 60px;
+  background-color: #7289da;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+header h1 {
+  color: #fff;
+  font-size: 24px;
+}
+
+header button {
+  background-color: transparent;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Main content styles */
+main {
+  max-width: 800px;
+  margin: 16px auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Message styles */
+.message-container {
+  display: flex;
+  margin-bottom: 16px;
+  max-width: 80%;
+}
+
+.message-container.sent {
+  align-self: flex-end;
+}
+
+.message-avatar {
+  width: 40px;
+  height: 40px;
+  margin-right: 8px;
+  background-color: #7289da;
+  border-radius: 50%;
+}
+
+.message-content {
+  background-color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  max-width: 500px;
+}
+
+.message-content p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.message-content .meta {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
