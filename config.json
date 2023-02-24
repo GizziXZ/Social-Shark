@@ -1,0 +1,3 @@
+{
+    "mongooseConnection":"mongodb+srv://user:password@mongodb/usersDB"
+}
