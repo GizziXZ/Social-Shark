@@ -1,3 +1,4 @@
 {
-    "mongooseConnection":"mongodb+srv://user:password@mongodb/usersDB"
+    "mongooseConnection":"mongodb+srv://user:password@mongodb/usersDB",
+    "sessionSecret":"12345"
 }
