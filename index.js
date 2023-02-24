@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const bcrypt = require('bcrypt');
 const store = new session.MemoryStore();
 const mongoose = require('mongoose');
 const User = require('./models/users');
@@ -61,11 +62,11 @@ app.post('/login', (req, res) => {
             res.status(500)
             console.log(err)
         } else {
-            if (!foundResults || foundResults.password !== password) {
+            if (!foundResults || !bcrypt.compareSync(password, foundResults.password)) {
 
                 const Error = 'Invalid login credentials'
                 return res.render('login', {Error})
-            } else if (foundResults.password === password) {
+            } else if (bcrypt.compareSync(password, foundResults.password)) {
 
                 req.session.authenticated = true
                 res.redirect('/')
@@ -86,7 +87,7 @@ app.post('/logout', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
-    const email = req.body.email.toLowerCase()
+    const email = req.body.email.toLowerCase() // TODO - Maybe send an email for confirmation?
     const username = req.body.username
     const password = req.body.password
 
@@ -147,12 +148,13 @@ app.post('/register', (req, res) => {
                             // console.log("Couldn't make an account: Same username and tag, trying again")
                             return;
                         } else {
+                            const hashedPassword = bcrypt.hashSync(password, 10)
 
                             const newUser = new User({ // The User
                                 email: email,
                                 username: username,
                                 tag: tag,
-                                password: password
+                                password: hashedPassword
                             });
 
                             newUser.save((err) => { // Save user to database
