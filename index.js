@@ -1,9 +1,9 @@
 const express = require('express');
 const session = require('express-session');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const store = new session.MemoryStore();
 const mongoose = require('mongoose');
-const User = require('./models/users');
 const config = require('./config.json')
 const bodyParser = require('body-parser');
 
@@ -13,6 +13,7 @@ mongoose.connect(config.mongooseConnection, {
 })
 
 const app = express();
+const store = new session.MemoryStore();
 const port = 80
 
 app.use(session({ // Session
@@ -42,7 +43,7 @@ app.get('/', (req, res) => {
 
 });
 
-app.get('/login', (req, res) => {
+app.get('/login', (req, res) => { // TODO - make it so that when you go to /login or /register it checks for a session and if session already exists then redirect to /
     const message = req.query.message // This message is sent when a new account is made and the user is redirected to /login
     res.render('login', {message: message})
 });
@@ -51,22 +52,63 @@ app.get('/register', (req, res) => {
     res.render('register')
 });
 
+app.get('/confirm', async (req, res) => { //TODO - there was something else I needed to do that I can't fucking remember that had to do with confirming but for the main part this all works
+    const token = req.query.token;
+    
+    try {
+        // Verify the token
+        const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
+
+        User.findOne({email: decoded.email}, async (err, foundResults) => { // search for the decoded email in database
+            if (!foundResults) { // if doesn't exist then return error
+                return res.status(404).send('Invalid token.');
+            } else if (foundResults.confirmed) { // if confirmed = true then give a message saying it's already confirmed
+                return res.redirect('/login?message= ' + encodeURIComponent('Your account has already been confirmed.'));
+            } else {
+                // Change "confirmed" value to true in database and save
+                foundResults.confirmed = true;
+                await foundResults.save();
+
+                req.session.destroy((err) => { // Delete existing session if it exists
+                    if (err) {
+                        console.error('Session deletion failed: ' + err)
+                        res.status(500)
+                    } else {
+                        res.status(204).end()
+                    }
+                })
+
+                // Redirect to the login page with a success message
+                return res.redirect('/login?message= ' + encodeURIComponent('Your account has been confirmed.'));
+            }
+        })
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).send('An error occurred while verifying your account.');
+    }
+});
+
+
+
 // SECTION Post requests
 
+const User = require('./models/users');
+
 app.post('/login', (req, res) => {
-    const email = req.body.email.toLowerCase()
+    const email = req.body.email.toLowerCase() //TODO - add "forgot password"
     const password = req.body.password
 
-    User.findOne({email: email}, (err, foundResults) => {
+    User.findOne({email: email}, (err, foundResults) => { // Search for the email in the database
         if (err) {
             res.status(500)
             console.log(err)
         } else {
-            if (!foundResults || !bcrypt.compareSync(password, foundResults.password)) {
+            if (!foundResults || !bcrypt.compareSync(password, foundResults.password)) { // If the email isn't in the database or the password isn't the same one as the hashed password in the database then:
 
                 const Error = 'Invalid login credentials'
                 return res.render('login', {Error})
-            } else if (bcrypt.compareSync(password, foundResults.password)) {
+            } else if (bcrypt.compareSync(password, foundResults.password)) { // If password matches up with the hashed password in the database then login
 
                 req.session.authenticated = true
                 res.redirect('/')
@@ -87,9 +129,31 @@ app.post('/logout', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
-    const email = req.body.email.toLowerCase() // TODO - Maybe send an email for confirmation?
+    const email = req.body.email.toLowerCase()
     const username = req.body.username
     const password = req.body.password
+
+    const token = jwt.sign({ email: email }, '123', { expiresIn: '48h' }); //NOTE - Temporary jwt secret
+
+    const transporter = nodemailer.createTransport({ // Email transporter
+        service: 'gmail',
+        secure: false,
+        auth: {
+          user: config.EmailUser,
+          pass: config.EmailPassword
+        },
+        tls: {
+            rejectUnauthorized: false
+        }
+      });
+
+    let confirmationEmail = {
+        from: config.EmailUser,
+        to: email,
+        subject: 'Social Shark - Account Confirmation',
+        text: 'Please click the link to confirm your account:',
+        html: `<p>Please click the link to confirm your account:</p><a href="http://localhost/confirm?token=${token}">Confirm Account</a>`
+    };
 
     async function CreateAccount() {
 
@@ -148,17 +212,26 @@ app.post('/register', (req, res) => {
                             // console.log("Couldn't make an account: Same username and tag, trying again")
                             return;
                         } else {
-                            const hashedPassword = bcrypt.hashSync(password, 10)
+                            const hash = bcrypt.hashSync(password, 10) // Hash the password
 
                             const newUser = new User({ // The User
                                 email: email,
                                 username: username,
                                 tag: tag,
-                                password: hashedPassword
+                                password: hash, // Send hashed password to database
+                                confirmed: false
                             });
 
+                            transporter.sendMail(confirmationEmail, (err, info) => {
+                                if (err) {
+                                    console.error(err)
+                                } else {
+                                    console.log(info.response);
+                                }
+                            })
+
                             newUser.save((err) => { // Save user to database
-                                err ? console.log(err): res.redirect('/login?message= ' + encodeURIComponent('Created account.')); // and then redirect him to /login while sending a message that the account has been made.
+                                err ? console.log(err): res.redirect('/login?message= ' + encodeURIComponent('Created account and sent a confirmation email.')); // and then redirect him to /login while sending a message that the account has been made.
                             });
 
                         }
