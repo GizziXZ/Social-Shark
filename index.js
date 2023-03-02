@@ -10,7 +10,19 @@ const bodyParser = require('body-parser');
 mongoose.connect(config.mongooseConnection, {
     useNewUrlParser: true,
     useUnifiedTopology: true
-})
+});
+
+const transporter = nodemailer.createTransport({ // Email transporter
+    service: 'gmail',
+    secure: false,
+    auth: {
+      user: config.EmailUser,
+      pass: config.EmailPassword
+    },
+    tls: {
+        rejectUnauthorized: false
+    }
+});
 
 const app = express();
 const store = new session.MemoryStore();
@@ -43,24 +55,68 @@ app.get('/', (req, res) => {
 
 });
 
-app.get('/login', (req, res) => { // TODO - make it so that when you go to /login or /register it checks for a session and if session already exists then redirect to /
+app.get('/login', (req, res) => {
+    if (req.session.authenticated) { // Redirect to / if authenticated
+        res.redirect('/')
+    } else { // Otherwise, render login page
     const message = req.query.message // This message is sent when a new account is made and the user is redirected to /login
     res.render('login', {message: message})
+    }
 });
 
 app.get('/register', (req, res) => {
+    if (req.session.authenticated) { // Redirect to / if authenticated
+        res.redirect('/')
+    } else { // Otherwise, render register page
     res.render('register')
+    }
 });
 
-app.get('/confirm', async (req, res) => { //TODO - there was something else I needed to do that I can't fucking remember that had to do with confirming but for the main part this all works
+app.get('/forgot-password', (req, res) => {
+    res.render('forgot-password')
+});
+
+app.get('/reset-password', (req, res) => {
     const token = req.query.token;
-    
+    if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
+
     try {
         // Verify the token
         const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
 
+        if (!decoded.email) return res.status(400).send('Invalid token.'); // If the token doesn't have an email then return error (this shouldn't happen)
+
         User.findOne({email: decoded.email}, async (err, foundResults) => { // search for the decoded email in database
-            if (!foundResults) { // if doesn't exist then return error
+            if (err) {
+                res.status(500)
+                console.log(err)
+            } else if (!foundResults) { // if doesn't exist then return error
+                return res.status(404).send('Invalid token.');
+            } else { // if it exists then render the reset-password page
+                res.render('reset-password')
+            }
+        })
+    } catch (err) {
+        console.error(err);
+        return res.status(500).send('An error occurred while reseting your password.');
+    }
+});
+
+app.get('/confirm', async (req, res) => { //TODO - there was something else I needed to do that I can't fucking remember that had to do with confirming but for the main part this all works
+    const token = req.query.token;
+    if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
+
+    try {
+        // Verify the token
+        const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
+
+        if (!decoded.email) return res.status(400).send('Invalid token.'); // If the token doesn't have an email then return error (this shouldn't happen)
+
+        User.findOne({email: decoded.email}, async (err, foundResults) => { // search for the decoded email in database
+            if (err) {
+                res.status(500)
+                console.log(err)
+            } else if (!foundResults) { // if doesn't exist then return error
                 return res.status(404).send('Invalid token.');
             } else if (foundResults.confirmed) { // if confirmed = true then give a message saying it's already confirmed
                 return res.redirect('/login?message= ' + encodeURIComponent('Your account has already been confirmed.'));
@@ -96,7 +152,7 @@ app.get('/confirm', async (req, res) => { //TODO - there was something else I ne
 const User = require('./models/users');
 
 app.post('/login', (req, res) => {
-    const email = req.body.email.toLowerCase() //TODO - add "forgot password"
+    const email = req.body.email.toLowerCase()
     const password = req.body.password
 
     User.findOne({email: email}, (err, foundResults) => { // Search for the email in the database
@@ -134,18 +190,6 @@ app.post('/register', (req, res) => {
     const password = req.body.password
 
     const token = jwt.sign({ email: email }, '123', { expiresIn: '48h' }); //NOTE - Temporary jwt secret
-
-    const transporter = nodemailer.createTransport({ // Email transporter
-        service: 'gmail',
-        secure: false,
-        auth: {
-          user: config.EmailUser,
-          pass: config.EmailPassword
-        },
-        tls: {
-            rejectUnauthorized: false
-        }
-      });
 
     let confirmationEmail = {
         from: config.EmailUser,
@@ -248,6 +292,74 @@ app.post('/register', (req, res) => {
 
 CreateAccount();
 });
+
+app.post('/forgot-password', (req, res) => {
+    const email = req.body.email.toLowerCase()
+    User.findOne({email: email}, (err, foundResults) => { // Search for the email in the database
+        if (err) {
+            console.error(err)
+            res.status(500)
+        } else {
+            if (!foundResults) {
+                const emailError = 'Email is not being used.'
+                return res.render('forgot-password', {emailError}); // Send user an error
+            } else {
+                const token = jwt.sign({ email: email }, '123', { expiresIn: '48h' }); //NOTE - Temporary jwt secret
+
+                let resetPasswordEmail = {
+                    from: config.EmailUser,
+                    to: email,
+                    subject: 'Social Shark - Reset Password',
+                    text: 'Please click the link to reset your password:',
+                    html: `<p>Please click the link to reset your password:</p><a href="http://localhost/reset-password?token=${token}">Reset Password</a>`
+                };
+
+                transporter.sendMail(resetPasswordEmail, (err, info) => {
+                    if (err) {
+                        console.error(err)
+                    } else {
+                        console.log(info.response);
+                    }
+                });
+
+                // Redirect to the login page with a success message
+                return res.redirect('/login?message= ' + encodeURIComponent('Successfully sent a reset password email.'));
+            }
+        }
+    })
+});
+
+app.post('/reset-password', (req, res) => {
+    const token = req.query.token
+    const password = req.body.password
+    const confirmpassword = req.body.confirmpassword
+
+    if (password.length < 5) {
+        const passwordError = 'Password must be atleast 5 characters'
+        return res.render('reset-password', {passwordError}) // Send user an error
+    } else if (password !== confirmpassword) {
+        const passwordError = 'Passwords do not match'
+        return res.render('reset-password', {passwordError}) // Send user an error
+    } else {
+        const hash = bcrypt.hashSync(password, 10) // Hash the password
+
+        jwt.verify(token, '123', (err, decoded) => { //NOTE - Temporary jwt secret
+            if (err) {
+                console.error(err)
+                res.status(500)
+            } else {
+                User.findOneAndUpdate({email: decoded.email}, {password: hash}, (err, foundResults) => { // Search for the email in the database
+                    if (err) {
+                        console.error(err)
+                        res.status(500)
+                    } else {
+                        return res.redirect('/login?message= ' + encodeURIComponent('Successfully reset your password.'));
+                    }
+                })
+            }
+        })
+    }
+});         
 
 // !SECTION
 
