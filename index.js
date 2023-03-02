@@ -95,7 +95,8 @@ app.get('/reset-password', (req, res) => {
             } else { // if it exists then render the reset-password page
                 res.render('reset-password')
             }
-        })
+        });
+
     } catch (err) {
         console.error(err);
         return res.status(500).send('An error occurred while reseting your password.');
@@ -144,7 +145,6 @@ app.get('/confirm', async (req, res) => { //TODO - there was something else I ne
         return res.status(500).send('An error occurred while verifying your account.');
     }
 });
-
 
 
 // SECTION Post requests
@@ -203,16 +203,16 @@ app.post('/register', (req, res) => {
 
         // Check if email is actually an email 
         const emailRegex = /^\S+@\S+\.\S+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(email)) { // If email is not an email then return error
             const emailError = 'Invalid Email address.'
             return res.render('register', {emailError});
         }
 
-        if (!username.length || username.substring(0,1) === ' ' || !username.replace((/\s/g, '').length)) {
+        if (!username.length || username.substring(0,1) === ' ' || !username.replace((/\s/g, '').length)) { // If username is empty or starts with a space or is all spaces then return error
             const usernameError = 'Username must be atleast 1 character, not start with a space or be all spaces.'
             return res.render('register', {usernameError})
 
-        } else if (password.length < 5) {
+        } else if (password.length < 5) { // If password is less than 5 characters then return error
             const passwordError = 'Password must be atleast 5 characters'
             return res.render('register', {passwordError})
 
@@ -329,15 +329,15 @@ app.post('/forgot-password', (req, res) => {
     })
 });
 
-app.post('/reset-password', (req, res) => {
+app.post('/reset-password', (req, res) => { // When the user submits the reset password form
     const token = req.query.token
     const password = req.body.password
     const confirmpassword = req.body.confirmpassword
 
-    if (password.length < 5) {
+    if (password.length < 5) { // If the password is less than 5 characters
         const passwordError = 'Password must be atleast 5 characters'
         return res.render('reset-password', {passwordError}) // Send user an error
-    } else if (password !== confirmpassword) {
+    } else if (password !== confirmpassword) { // If the password and the confirm password don't match
         const passwordError = 'Passwords do not match'
         return res.render('reset-password', {passwordError}) // Send user an error
     } else {
@@ -347,12 +347,12 @@ app.post('/reset-password', (req, res) => {
             if (err) {
                 console.error(err)
                 res.status(500)
-            } else {
+            } else { // If the token is valid
                 User.findOneAndUpdate({email: decoded.email}, {password: hash}, (err, foundResults) => { // Search for the email in the database
                     if (err) {
                         console.error(err)
                         res.status(500)
-                    } else {
+                    } else { // If the email is in the database
                         return res.redirect('/login?message= ' + encodeURIComponent('Successfully reset your password.'));
                     }
                 })
