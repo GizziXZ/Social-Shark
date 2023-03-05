@@ -29,7 +29,7 @@ const store = new session.MemoryStore();
 const port = 80
 
 app.use(session({ // Session
-    secret: config.sessionSecret, // NOTE - Temporary secret
+    secret: config.sessionSecret,
     cookie: { maxAge: 300000 },
     resave: true,
     saveUninitialized: false,
@@ -82,7 +82,7 @@ app.get('/reset-password', (req, res) => {
         if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
 
         // Verify the token
-        const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
+        const decoded = jwt.verify(token, config.jwtSecret);
 
         if (!decoded.email) return res.status(400).send('Invalid token.'); // If the token doesn't have an email then return error (this shouldn't happen)
 
@@ -109,7 +109,7 @@ app.get('/confirm', async (req, res) => { //TODO - there was something else I ne
         if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
 
         // Verify the token
-        const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
+        const decoded = jwt.verify(token, config.jwtSecret);
 
         if (!decoded.email) return res.status(400).send('Invalid token.'); // If the token doesn't have an email then return error (this shouldn't happen)
 
@@ -194,7 +194,7 @@ app.post('/register', (req, res) => {
     const username = req.body.username
     const password = req.body.password
 
-    const token = jwt.sign({ email: email }, '123', { expiresIn: '48h' }); //NOTE - Temporary jwt secret
+    const token = jwt.sign({ email: email }, config.jwtSecret, { expiresIn: '48h' });
 
     let confirmationEmail = {
         from: config.EmailUser,
@@ -311,7 +311,7 @@ app.post('/forgot-password', (req, res) => {
                 const emailError = 'Email is not being used.'
                 return res.render('forgot-password', {emailError}); // Send user an error
             } else {
-                const token = jwt.sign({ email: email }, '123', { expiresIn: '48h' }); //NOTE - Temporary jwt secret
+                const token = jwt.sign({ email: email }, config.jwtSecret, { expiresIn: '48h' });
 
                 let resetPasswordEmail = {
                     from: config.EmailUser,
@@ -355,7 +355,7 @@ app.post('/reset-password', (req, res) => { // When the user submits the reset p
     } else {
         const hash = bcrypt.hashSync(password, 10) // Hash the password
 
-        jwt.verify(token, '123', (err, decoded) => { //NOTE - Temporary jwt secret
+        jwt.verify(token, config.jwtSecret, (err, decoded) => {
             if (err) {
                 console.error(err)
                 res.status(500)
