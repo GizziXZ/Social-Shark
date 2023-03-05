@@ -1,6 +1,7 @@
 {
     "mongooseConnection":"mongodb+srv://user:password@mongodb/usersDB",
     "sessionSecret":"12345",
+    "jwtSecret":"123456",
     "EmailUser":"emailyouregoing@touse.com",
     "EmailPassword":"emailpassword123"
 }
