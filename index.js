@@ -13,7 +13,7 @@ mongoose.connect(config.mongooseConnection, {
 });
 
 const transporter = nodemailer.createTransport({ // Email transporter
-    service: 'gmail',
+    service: 'gmail', // Change this to whatever email service you use
     secure: false,
     auth: {
       user: config.EmailUser,
@@ -40,10 +40,10 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-app.get('/', (req, res) => {
+app.get('/', (req, res) => { //TODO - add actual messaging system
     // console.log(store)
     // console.log(req.session)
-    
+
 
     if (!req.session.authenticated) { // Redirect to /login if not authenticated
         res.redirect('/login')
@@ -77,10 +77,10 @@ app.get('/forgot-password', (req, res) => {
 });
 
 app.get('/reset-password', (req, res) => {
-    const token = req.query.token;
-    if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
-
     try {
+        const token = req.query.token;
+        if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
+
         // Verify the token
         const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
 
@@ -89,7 +89,7 @@ app.get('/reset-password', (req, res) => {
         User.findOne({email: decoded.email}, async (err, foundResults) => { // search for the decoded email in database
             if (err) {
                 res.status(500)
-                console.log(err)
+                console.error(err)
             } else if (!foundResults) { // if doesn't exist then return error
                 return res.status(404).send('Invalid token.');
             } else { // if it exists then render the reset-password page
@@ -104,10 +104,10 @@ app.get('/reset-password', (req, res) => {
 });
 
 app.get('/confirm', async (req, res) => { //TODO - there was something else I needed to do that I can't fucking remember that had to do with confirming but for the main part this all works
-    const token = req.query.token;
-    if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
-
     try {
+        const token = req.query.token;
+        if (!token) return res.status(400).send('Invalid token.'); // If there is no token then return error
+
         // Verify the token
         const decoded = jwt.verify(token, '123'); //NOTE - Temporary jwt secret
 
@@ -116,7 +116,7 @@ app.get('/confirm', async (req, res) => { //TODO - there was something else I ne
         User.findOne({email: decoded.email}, async (err, foundResults) => { // search for the decoded email in database
             if (err) {
                 res.status(500)
-                console.log(err)
+                console.error(err)
             } else if (!foundResults) { // if doesn't exist then return error
                 return res.status(404).send('Invalid token.');
             } else if (foundResults.confirmed) { // if confirmed = true then give a message saying it's already confirmed
@@ -152,13 +152,14 @@ app.get('/confirm', async (req, res) => { //TODO - there was something else I ne
 const User = require('./models/users');
 
 app.post('/login', (req, res) => {
+    try {
     const email = req.body.email.toLowerCase()
     const password = req.body.password
 
     User.findOne({email: email}, (err, foundResults) => { // Search for the email in the database
         if (err) {
             res.status(500)
-            console.log(err)
+            console.error(err)
         } else {
             if (!foundResults || !bcrypt.compareSync(password, foundResults.password)) { // If the email isn't in the database or the password isn't the same one as the hashed password in the database then:
 
@@ -171,6 +172,10 @@ app.post('/login', (req, res) => {
             }
         }
     })
+    } catch (err) {
+        console.error(err);
+        return res.status(500).send('An error occurred while logging in.');
+    }
 });
 
 app.post('/logout', (req, res) => {
@@ -268,14 +273,14 @@ app.post('/register', (req, res) => {
 
                             transporter.sendMail(confirmationEmail, (err, info) => {
                                 if (err) {
-                                    console.error(err)
-                                } else {
-                                    console.log(info.response);
+                                    console.error(err);
                                 }
+                            
+                                // console.log(info.response);
                             })
 
                             newUser.save((err) => { // Save user to database
-                                err ? console.log(err): res.redirect('/login?message= ' + encodeURIComponent('Created account and sent a confirmation email.')); // and then redirect him to /login while sending a message that the account has been made.
+                                err ? console.error(err): res.redirect('/login?message= ' + encodeURIComponent('Created account and sent a confirmation email.')); // and then redirect him to /login while sending a message that the account has been made.
                             });
 
                         }
@@ -294,7 +299,9 @@ CreateAccount();
 });
 
 app.post('/forgot-password', (req, res) => {
+    try {
     const email = req.body.email.toLowerCase()
+
     User.findOne({email: email}, (err, foundResults) => { // Search for the email in the database
         if (err) {
             console.error(err)
@@ -317,16 +324,21 @@ app.post('/forgot-password', (req, res) => {
                 transporter.sendMail(resetPasswordEmail, (err, info) => {
                     if (err) {
                         console.error(err)
-                    } else {
-                        console.log(info.response);
                     }
+                    
+                    // console.log(info.response);
                 });
 
                 // Redirect to the login page with a success message
                 return res.redirect('/login?message= ' + encodeURIComponent('Successfully sent a reset password email.'));
             }
         }
-    })
+    });
+
+    } catch (err) {
+        console.error(err)
+        res.status(500)
+    }
 });
 
 app.post('/reset-password', (req, res) => { // When the user submits the reset password form
@@ -359,9 +371,27 @@ app.post('/reset-password', (req, res) => { // When the user submits the reset p
             }
         })
     }
-});         
+});
 
-// !SECTION
+//!SECTION
+
+// SECTION - Job
+const cron = require('node-cron');
+
+const job = cron.schedule('0 0 * * *', () => {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // calculate the timestamp three days ago
+    User.deleteMany({ confirmed: false, createdAt: { $lt: threeDaysAgo } }, (err) => { // delete all unconfirmed accounts older than 3 days
+      if (err) {
+        console.error(err);
+      }
+
+      // console.log('Deleted unconfirmed accounts older than 3 days');
+    });
+});
+
+job.start();
+
+//!SECTION
 
 app.listen(port, () => {
     console.log(`Running on port ${port}`)
